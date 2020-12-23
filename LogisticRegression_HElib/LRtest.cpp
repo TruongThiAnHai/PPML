@@ -25,30 +25,14 @@ void ReadLRparams(LRpar& LRparams, int max_iter, dMat zTrain,  int polydeg,  lon
         LRparams.evalcoeff[i]= to_ZZ("0");
     }
 
-    
-    switch(polydeg){
-        case 3:
-            LRparams.max_iter = 25;
-            LRparams.coeff[1] =  2.401926612;
-            LRparams.coeff[3] = (-1.631249824);
+ 
+    LRparams.max_iter = 25;
+    LRparams.coeff[1] =  2.401926612;
+    LRparams.coeff[3] = (-1.631249824);
             
-            LRparams.evalcoeff[1]=  scaleup(LRparams.coeff[1]/LRparams.coeff[3], logp);
-            LRparams.evalcoeff[3]=  scaleup(LRparams.coeff[3], logp);
-            break;
+    LRparams.evalcoeff[1]=  scaleup(LRparams.coeff[1]/LRparams.coeff[3], logp);
+    LRparams.evalcoeff[3]=  scaleup(LRparams.coeff[3], logp);
             
-        case 7:
-            LRparams.max_iter =   20;
-            LRparams.coeff[1] =   3.46992;
-            LRparams.coeff[3] = - 8.38814;
-            LRparams.coeff[5] =   10.86804;
-            LRparams.coeff[7] = - 5.0;
-            
-            LRparams.evalcoeff[1]=  scaleup(LRparams.coeff[1], logp);
-            LRparams.evalcoeff[3]=  scaleup(LRparams.coeff[3], logp);
-            LRparams.evalcoeff[5]=  scaleup(LRparams.coeff[5], logp);
-            LRparams.evalcoeff[7]=  to_ZZ(LRparams.coeff[7]);
-            break;
-    }
 
     
     
@@ -184,40 +168,4 @@ double getAUC(dVec theta, dMat zTest){
         cout << "AUC: " << auc << endl;
     }
 }
-
-double  getMSE(dVec theta1, dVec theta2){
-    double res= 0.0;
-    
-    for(int i=0; i< theta1.size(); ++i){
-        double dtemp = pow(theta1[i]-theta2[i], 2.0);
-        res += dtemp;
-    }
-    res/= (theta1.size());
-    return res;
-    
-}
-
-
-double  getNMSE(dVec theta1, dVec theta2){
-    double res= 0.0;
-    
-    for(int i=0; i< theta1.size(); ++i){
-        double dtemp = pow(theta1[i], 2.0);
-        res += dtemp;
-    }
-    res/= (theta1.size());
-    
-    double mse= getMSE(theta1, theta2);
-    res= (mse/res);
-    
-    return res;
-    
-}
-
-
-
-// Update mtheta (in an unencrypted status) and compare the encrypted output "theta"
-// with using the same sigmoid-approximation method
-
-//void show_and_compare(dVec& theta, dMat zTrain, CZZ*& dtheta, LRpar& LRparams, long logp){
 
