@@ -47,8 +47,5 @@ void LR_poly(dVec& theta, dMat zTrain, LRpar& LRparams);
 //---------------------------------------------------------------------
 double getAUC(dVec theta, dMat zTest);
 
-double getMSE(dVec theta1, dVec theta2);
-
-double getNMSE(dVec theta1, dVec theta2);
 
 #endif
