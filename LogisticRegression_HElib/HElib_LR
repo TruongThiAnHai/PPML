@@ -20,7 +20,6 @@ void ReadLRparams(LRpar& LRparams, int max_iter, dMat zTrain,  int polydeg,  lon
     for(int i=0; i<10; i++){
          LRparams.coeff[i] = 0.0;
     }
-    
     // "Scaled" polynomial coefficients
     LRparams.polyscale= 4;
     for(int i=0; i<10; i++){
@@ -50,23 +49,6 @@ ZZ scaleup(double value, const long& l){
     
     return res;
 }
-
-double scaledown(double value, const long& l){
-    double res = value;
-    for(int j=0; j< l; j++){
-        res /= 2;
-    }
-    return res;
-    
-}
-
-double inner_prod(dVec u, dVec v, int start = 0){
-    double res = 0.0;
-    for(int i = start; i < u.size(); ++i) res += u[i] * v[i];
-    return res;
-}
-
-//! One iteration with the original method
 void LR_sigmoid(dVec& theta, dMat zTrain, LRpar& LRparams){
     double* grad = new double[theta.size()];
     for(int i = 0; i < theta.size(); ++i) grad[i] = 0.0;
@@ -126,7 +108,6 @@ double getAUC(dVec theta, dMat zTest){
     cout << xtheta_y0.size() << " = " <<  (100.0 * (n_fail_y0 + n_fail_y1) / zTest.size()) << " %." << endl;
     cout << "Correctness: " << correctness  << " %." << endl;
     
-    
     if(xtheta_y0.size() == 0 || xtheta_y1.size() ==0){
         cout << "n_test_yi = 0 : cannot compute AUC" << endl;
         return 0.0;
@@ -142,11 +123,6 @@ double getAUC(dVec theta, dMat zTest){
         return auc;
         cout << "AUC: " << auc << endl;
     }
-}
-
-long LogReg::getctlvl(Cipher& ctxt){
-    long nBits = NumBits(ctxt.mod)-1;
-    return nBits;
 }
 
 //! @ output ztrain = (2*y[k]-1) * (1, x[k])  -> encryption: zTrainCipher
@@ -176,56 +152,6 @@ void LogReg::EncryptData(Cipher*& zTrainCipher, dMat zTrain){
     delete[] mvec;
 
 }
-
-
-void LogReg::show_and_compare(dVec& theta, dMat zTrain, CZZ*& dtheta){
-    
-   LR_poly(theta, zTrain, LRparams);
-    
-    double maxErrorBit = 0.0;
-    double minRelativeBit= 20.0;
-    
-    for(int i=0; i< LRparams.dim1; i++){
-        ZZ msg_scaleup= scaleup(theta[i], LRparams.logp);
-        
-        cout << "m " << i << " : ["  <<  msg_scaleup << "], theta: " << theta[i] << endl;   // unencrypted
-        
-        double theta;
-        conv(theta, dtheta[i].r);
-        theta = scaledown(theta, LRparams.logp);
-        
-        cout << "d " << i << " : ["  << dtheta[i].r << "], (HE)theta: " << theta << endl;      // encrypted
-        cout << "e " << i << " : ["  << (msg_scaleup - dtheta[i].r)  << "],  ";    // error
-        
-        
-        // Msg-bit
-        ZZ msgbnd= dtheta[i].r;
-        double MsgBit = 0.0;
-        if(msgbnd!=0)
-            MsgBit= (log(abs(msgbnd))/log(2)) ;
-        cout << "Msg: " << MsgBit << ", ";
-        
-        // Error-bit
-        ZZ error = (msg_scaleup - dtheta[i].r);
-        double ErrorBit = 0.0;
-        if(error!=0)
-            ErrorBit= (log(abs(error))/log(2)) ;
-        cout << "Error: " << ErrorBit << endl;
-        
-        double RelativeBit= MsgBit- ErrorBit;
-        
-        if(maxErrorBit < ErrorBit) maxErrorBit= ErrorBit;
-        if(minRelativeBit > RelativeBit)  minRelativeBit= RelativeBit;
-        cout << "-------------------------------------------------------------" << endl;
-        
-    }
-    
-    cout << "MAX error bit : " << maxErrorBit << ", Min relative-error bit: " << minRelativeBit<< endl;
-    cout << "-------------------------------------------------------------" << endl;
- 
-    
-}
-
 void LogReg::HElogreg(Cipher*& thetaCipher, Cipher*& zTrainCipher,  dMat zTrain){
     auto start= chrono::steady_clock::now();
     
@@ -289,20 +215,14 @@ void LogReg::HElogreg(Cipher*& thetaCipher, Cipher*& zTrainCipher,  dMat zTrain)
             scheme.subAndEqual(thetaCipher[i], gradCipher[i]);
         }
         NTL_EXEC_RANGE_END;
-        
-        
+       
         auto end = std::chrono::steady_clock::now();
         auto diff = end - start;
         double timeElapsed= chrono::duration <double, milli> (diff).count()/1000.0;
         totaltime += timeElapsed;
         
         delete[] gradCipher;
-        
-        cout << "-------------------------------------------------------------" << endl;
         cout << j+1 << "-iter : mod(theta)= " << getctlvl(thetaCipher[0]) << ", running time= "  << timeElapsed << "s, " ;
-        cout << "-------------------------------------------------------------" << endl;
-        
-        
         for(int i=0; i< LRparams.dim1; ++i){
             dtheta[i] = (scheme.decrypt(secretKey, thetaCipher[i]))[0];
         }
@@ -310,75 +230,10 @@ void LogReg::HElogreg(Cipher*& thetaCipher, Cipher*& zTrainCipher,  dMat zTrain)
         show_and_compare(mtheta, zTrain, dtheta);
     }
     
-    
     cout << "Total Evaluation Time = " << totaltime << " s" << endl;
-
     delete[] zSumCipher;
     delete[] ctemp;
     delete[] dtheta;
    
     
 }
-Cipher* LogReg::getgrad_deg3(Cipher*& thetaCipher, Cipher*& zTrainCipher){
-    
-    double tlvl =  getctlvl(thetaCipher[0]);
-    double zlvl =  getctlvl(zTrainCipher[0]);
-    
-    Cipher* ctemp= new Cipher[LRparams.dim1];
-    
-    NTL_EXEC_RANGE(LRparams.dim1, first, last);
-    for (long i = first; i < last; i++){
-        ctemp[i] = scheme.modEmbed(zTrainCipher[i], zlvl - tlvl);
-        scheme.multAndEqual(ctemp[i], thetaCipher[i]);
-    }
-    NTL_EXEC_RANGE_END;
-    
-    Cipher ztheta = ctemp[0];
-    for (long i = 1; i < LRparams.dim1; i++){
-        scheme.addAndEqual(ztheta, ctemp[i]);
-    }
-    
-    scheme.modSwitchAndEqual(ztheta, LRparams.logp);  // ztheta.lvl : tlvl - logp
-
- 
-    //---------------------------------------------------
-    //! zSquare= p * (theat*z[k]/8)^2 + p (a1/a3) with  tlvl - 2*logp
-    Cipher zSquare= scheme.square(ztheta);
-    scheme.modSwitchAndEqual(zSquare, LRparams.logp);
-    scheme.addConstAndEqual(zSquare, LRparams.evalcoeff[1]);
-    
-
-    //! res[i]= ((z[i]/8) * a3 ) * (ztheta)) * (ztheta^2 + a1/a3))
-    Cipher* res= new Cipher[LRparams.dim1];
-    
-    NTL_EXEC_RANGE(LRparams.dim1, first, last);
-    for (long i = first; i < last; ++i){
-        res[i]= scheme.multByConst(zTrainCipher[i], LRparams.evalcoeff[3]);
-        scheme.modSwitchAndEqual(res[i], LRparams.logp);  // ((z[i]/8) * a3 ) with zlvl - logp
-        
-        scheme.modEmbedAndEqual(res[i], zlvl - tlvl);
-        scheme.multAndEqual(res[i], ztheta);
-        scheme.modSwitchAndEqual(res[i], LRparams.logp);  // ((z[i]/8) * a3 ) * (ztheta)) with zlvl - 2*logp
-        
-        scheme.multAndEqual(res[i], zSquare);
-        scheme.modSwitchAndEqual(res[i], LRparams.logp);  // with zlvl - 3*logp
-    }
-    NTL_EXEC_RANGE_END;
-    
-    //! (sum res[i]) / (n/polyscale)
-    NTL_EXEC_RANGE(LRparams.dim1, first, last);
-    for (long i = first; i < last; ++i){
-        for(long j= 0; j< LRparams.logn; ++j){
-            long l = (1<<j);
-            ctemp[i] = scheme.leftRotate(res[i], l);
-            scheme.addAndEqual(res[i], ctemp[i]);
-        }
-       
-        scheme.modSwitchAndEqual(res[i], LRparams.logn - LRparams.log2polyscale);
-    }
-    NTL_EXEC_RANGE_END;
-    
-    delete[] ctemp;
-    return res;
-}
-
